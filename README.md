@@ -632,6 +632,7 @@ MIT License - See [LICENSE](LICENSE) file for details.
 - **Issues:** [GitHub Issues](https://github.com/Duvet05/vps-ops-kit/issues)
 - **Documentation:** [GitHub Wiki](https://github.com/Duvet05/vps-ops-kit/wiki)
 - **Discussions:** [GitHub Discussions](https://github.com/Duvet05/vps-ops-kit/discussions)
+- **LiveKit Self-Hosting Guide:** [Comprehensive LiveKit Setup Guide](https://kno2gether.notion.site/LiveKIT-Self-Hosting-Guide-182addbfeceb800c8262c3e07599fb9b)
 
 ### Reporting Security Issues
 
