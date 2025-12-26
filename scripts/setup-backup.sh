@@ -75,6 +75,7 @@ create_backup_config() {
     cat > "$BACKUP_SCRIPT_DIR/config/backup.conf" << 'EOF'
 # VPS Backup Configuration
 # Edit this file to customize your backup settings
+# WARNING: This file may contain sensitive credentials - keep it secure!
 
 # Backup destination
 BACKUP_DIR="/var/backups/vps"
@@ -126,7 +127,12 @@ ENABLE_NOTIFICATIONS=false
 NOTIFICATION_EMAIL=""
 EOF
 
+    # Secure the configuration file (contains sensitive data)
+    chmod 600 "$BACKUP_SCRIPT_DIR/config/backup.conf"
+    chown root:root "$BACKUP_SCRIPT_DIR/config/backup.conf"
+
     success "Backup configuration created at $BACKUP_SCRIPT_DIR/config/backup.conf"
+    warning "Configuration file secured with 600 permissions (contains sensitive data)"
 }
 
 # Create main backup script
@@ -293,7 +299,8 @@ echo "  Log: $BACKUP_LOG"
 echo ""
 EOFSCRIPT
 
-    chmod +x "$BACKUP_SCRIPT_DIR/backup.sh"
+    chmod 700 "$BACKUP_SCRIPT_DIR/backup.sh"
+    chown root:root "$BACKUP_SCRIPT_DIR/backup.sh"
 
     success "Backup script created at $BACKUP_SCRIPT_DIR/backup.sh"
 }
@@ -363,7 +370,8 @@ else
 fi
 EOFSCRIPT
 
-    chmod +x "$BACKUP_SCRIPT_DIR/restore.sh"
+    chmod 700 "$BACKUP_SCRIPT_DIR/restore.sh"
+    chown root:root "$BACKUP_SCRIPT_DIR/restore.sh"
 
     success "Restore script created at $BACKUP_SCRIPT_DIR/restore.sh"
 }
