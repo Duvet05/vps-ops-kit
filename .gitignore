@@ -1,0 +1,29 @@
+# Log files
+*.log
+logs/
+
+# Backup files
+*.backup
+*.bak
+*~
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+
+# Sensitive data
+*.key
+*.pem
+*.crt
+*.conf.local
+secrets/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated
+Thumbs.db
