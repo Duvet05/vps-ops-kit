@@ -248,7 +248,11 @@ show_system_info() {
     echo ""
     echo "Installed Tools:"
     command -v docker &>/dev/null && echo "  ✓ Docker" || echo "  ✗ Docker"
-    command -v docker-compose &>/dev/null && echo "  ✓ Docker Compose" || echo "  ✗ Docker Compose"
+    if command -v docker-compose &>/dev/null || docker compose version &>/dev/null 2>&1; then
+        echo "  ✓ Docker Compose"
+    else
+        echo "  ✗ Docker Compose"
+    fi
     command -v ufw &>/dev/null && echo "  ✓ UFW" || echo "  ✗ UFW"
     command -v fail2ban-client &>/dev/null && echo "  ✓ fail2ban" || echo "  ✗ fail2ban"
     echo ""
