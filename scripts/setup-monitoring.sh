@@ -184,7 +184,7 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--web.enable-lifecycle'
     ports:
-      - "9090:9090"
+      - "9091:9090"
     networks:
       - monitoring
 
@@ -298,7 +298,7 @@ show_status() {
     fi
     echo ""
     echo "Access URLs:"
-    echo "  Prometheus: http://$(hostname -I | awk '{print $1}'):9090"
+    echo "  Prometheus: http://$(hostname -I | awk '{print $1}'):9091"
     echo "  Grafana:    http://$(hostname -I | awk '{print $1}'):3000"
     echo ""
     echo "Grafana Default Credentials:"
@@ -369,11 +369,11 @@ configure_firewall() {
             log "Configuring UFW rules..."
 
             # Check if rules already exist
-            if ! ufw status | grep -q "9090/tcp"; then
-                ufw allow 9090/tcp comment 'Prometheus'
-                log "Added Prometheus port (9090)"
+            if ! ufw status | grep -q "9091/tcp"; then
+                ufw allow 9091/tcp comment 'Prometheus'
+                log "Added Prometheus port (9091)"
             else
-                log "Prometheus port (9090) already allowed"
+                log "Prometheus port (9091) already allowed"
             fi
 
             if ! ufw status | grep -q "3000/tcp"; then
@@ -385,7 +385,7 @@ configure_firewall() {
 
             success "Firewall rules configured for monitoring"
         else
-            warning "UFW not found. Please configure firewall manually for ports 3000 and 9090"
+            warning "UFW not found. Please configure firewall manually for ports 3000 and 9091"
         fi
     fi
 }
