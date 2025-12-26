@@ -98,16 +98,30 @@ install_docker_compose() {
 create_monitoring_structure() {
     log "Creating monitoring directory structure..."
 
+    if [ -d "$MONITORING_DIR" ]; then
+        warning "Monitoring directory already exists at $MONITORING_DIR"
+        read -p "Continue and potentially overwrite files? (yes/no): " answer
+        if [ "$answer" != "yes" ]; then
+            log "User chose not to overwrite. Exiting."
+            exit 0
+        fi
+    fi
+
     mkdir -p "$MONITORING_DIR"
     mkdir -p "$MONITORING_DIR/prometheus"
     mkdir -p "$MONITORING_DIR/grafana"
 
-    success "Directory structure created at $MONITORING_DIR"
+    success "Directory structure ready at $MONITORING_DIR"
 }
 
 # Create Prometheus configuration
 create_prometheus_config() {
     log "Creating Prometheus configuration..."
+
+    if [ -f "$MONITORING_DIR/prometheus/prometheus.yml" ]; then
+        log "Prometheus config already exists, skipping creation"
+        return 0
+    fi
 
     cat > "$MONITORING_DIR/prometheus/prometheus.yml" << 'EOF'
 global:
@@ -146,6 +160,11 @@ EOF
 # Create Docker Compose file
 create_docker_compose() {
     log "Creating Docker Compose configuration..."
+
+    if [ -f "$MONITORING_DIR/docker-compose.yml" ]; then
+        log "Docker Compose config already exists, skipping creation"
+        return 0
+    fi
 
     cat > "$MONITORING_DIR/docker-compose.yml" << 'EOF'
 version: '3.8'
@@ -244,6 +263,16 @@ start_monitoring() {
 
     cd "$MONITORING_DIR"
 
+    # Check if containers are already running
+    if docker ps | grep -q "prometheus"; then
+        log "Prometheus container already running"
+        read -p "Restart monitoring stack? (yes/no): " answer
+        if [ "$answer" != "yes" ]; then
+            log "Skipping container restart"
+            return 0
+        fi
+    fi
+
     # Check if using docker-compose or docker compose
     if command -v docker-compose &> /dev/null; then
         docker-compose up -d
@@ -335,9 +364,23 @@ configure_firewall() {
     if [ "$answer" == "yes" ]; then
         if command -v ufw &> /dev/null; then
             log "Configuring UFW rules..."
-            ufw allow 9090/tcp comment 'Prometheus'
-            ufw allow 3000/tcp comment 'Grafana'
-            success "Firewall rules added for Prometheus (9090) and Grafana (3000)"
+
+            # Check if rules already exist
+            if ! ufw status | grep -q "9090/tcp"; then
+                ufw allow 9090/tcp comment 'Prometheus'
+                log "Added Prometheus port (9090)"
+            else
+                log "Prometheus port (9090) already allowed"
+            fi
+
+            if ! ufw status | grep -q "3000/tcp"; then
+                ufw allow 3000/tcp comment 'Grafana'
+                log "Added Grafana port (3000)"
+            else
+                log "Grafana port (3000) already allowed"
+            fi
+
+            success "Firewall rules configured for monitoring"
         else
             warning "UFW not found. Please configure firewall manually for ports 3000 and 9090"
         fi

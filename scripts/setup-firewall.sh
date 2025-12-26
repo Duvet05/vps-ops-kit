@@ -101,15 +101,38 @@ install_ufw() {
     fi
 }
 
+# Helper function to check if UFW rule exists
+rule_exists() {
+    local port_proto="$1"
+    ufw status numbered | grep -q "$port_proto"
+}
+
+# Helper function to add UFW rule if it doesn't exist
+add_rule_if_missing() {
+    local port_proto="$1"
+    local comment="$2"
+
+    if rule_exists "$port_proto"; then
+        log "Rule already exists: $port_proto - skipping"
+    else
+        ufw allow "$port_proto" comment "$comment"
+        log "Added rule: $port_proto ($comment)"
+    fi
+}
+
 # Configure basic rules
 configure_basic_rules() {
     log "Configuring basic firewall rules..."
 
     # Reset UFW to defaults (asks for confirmation)
-    read -p "Reset UFW to default settings? (recommended for first-time setup) (yes/no): " answer
-    if [ "$answer" == "yes" ]; then
-        ufw --force reset
-        success "UFW reset to defaults"
+    if ufw status | grep -q "Status: inactive"; then
+        read -p "Reset UFW to default settings? (recommended for first-time setup) (yes/no): " answer
+        if [ "$answer" == "yes" ]; then
+            ufw --force reset
+            success "UFW reset to defaults"
+        fi
+    else
+        log "UFW already configured, skipping reset (use manual 'ufw reset' if needed)"
     fi
 
     # Set default policies
@@ -119,14 +142,14 @@ configure_basic_rules() {
 
     # CRITICAL: Always allow SSH first to prevent lockout
     log "Allowing SSH (port 22) - CRITICAL for remote access"
-    ufw allow 22/tcp comment 'SSH'
-    success "SSH access allowed on port 22"
+    add_rule_if_missing "22/tcp" "SSH"
+    success "SSH access configured on port 22"
 
     # Allow HTTP and HTTPS
     log "Allowing HTTP and HTTPS"
-    ufw allow 80/tcp comment 'HTTP'
-    ufw allow 443/tcp comment 'HTTPS'
-    success "HTTP (80) and HTTPS (443) allowed"
+    add_rule_if_missing "80/tcp" "HTTP"
+    add_rule_if_missing "443/tcp" "HTTPS"
+    success "HTTP (80) and HTTPS (443) configured"
 }
 
 # Configure application-specific ports
@@ -146,11 +169,11 @@ configure_app_ports() {
     case $preset in
         1)
             log "Configuring LiveKit WebRTC Server ports..."
-            ufw allow 7881/tcp comment 'LiveKit WebRTC over TCP'
-            ufw allow 3478/udp comment 'LiveKit TURN/UDP'
-            ufw allow 50000:60000/udp comment 'LiveKit WebRTC UDP Range'
-            ufw allow 1935/tcp comment 'LiveKit RTMP Ingress'
-            ufw allow 7885/udp comment 'LiveKit WHIP Ingress WebRTC'
+            add_rule_if_missing "7881/tcp" "LiveKit WebRTC over TCP"
+            add_rule_if_missing "3478/udp" "LiveKit TURN/UDP"
+            add_rule_if_missing "50000:60000/udp" "LiveKit WebRTC UDP Range"
+            add_rule_if_missing "1935/tcp" "LiveKit RTMP Ingress"
+            add_rule_if_missing "7885/udp" "LiveKit WHIP Ingress WebRTC"
             success "LiveKit ports configured"
             ;;
         2)
@@ -184,8 +207,7 @@ configure_custom_ports() {
             comment=$(echo "$line" | cut -d' ' -f2-)
 
             if [ -n "$port_proto" ]; then
-                ufw allow "$port_proto" comment "$comment"
-                log "Added rule: $port_proto ($comment)"
+                add_rule_if_missing "$port_proto" "$comment"
             fi
         fi
     done

@@ -67,6 +67,15 @@ install_fail2ban() {
     # Create local configuration
     log "Configuring fail2ban..."
 
+    if [ -f /etc/fail2ban/jail.local ]; then
+        warning "fail2ban configuration already exists"
+        read -p "Overwrite existing fail2ban configuration? (yes/no): " answer
+        if [ "$answer" != "yes" ]; then
+            log "Keeping existing fail2ban configuration"
+            return 0
+        fi
+    fi
+
     cat > /etc/fail2ban/jail.local << 'EOF'
 [DEFAULT]
 # Ban hosts for 1 hour:
@@ -130,51 +139,54 @@ harden_ssh() {
     # Basic hardening
     log "Applying basic SSH hardening..."
 
+    # Helper function to update SSH config setting
+    update_ssh_setting() {
+        local setting="$1"
+        local value="$2"
+
+        # Remove existing setting (both commented and uncommented)
+        sed -i "/^#\?${setting}\s/d" /etc/ssh/sshd_config
+        # Add new setting at the end
+        echo "${setting} ${value}" >> /etc/ssh/sshd_config
+    }
+
     # Disable root login
-    sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
+    update_ssh_setting "PermitRootLogin" "prohibit-password"
 
     # Disable password authentication (use keys only)
     read -p "Disable password authentication? (requires SSH key setup) (yes/no): " disable_pwd
     if [ "$disable_pwd" = "yes" ]; then
-        sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+        update_ssh_setting "PasswordAuthentication" "no"
         warning "Password authentication disabled. Ensure you have SSH keys configured!"
     fi
 
     # Disable empty passwords
-    sed -i 's/^#\?PermitEmptyPasswords.*/PermitEmptyPasswords no/' /etc/ssh/sshd_config
+    update_ssh_setting "PermitEmptyPasswords" "no"
 
     # Set maximum authentication attempts
-    sed -i 's/^#\?MaxAuthTries.*/MaxAuthTries 3/' /etc/ssh/sshd_config
+    update_ssh_setting "MaxAuthTries" "3"
 
     if [ "$ssh_option" = "1" ]; then
         # Full hardening
         log "Applying advanced SSH hardening..."
 
         # Disable X11 forwarding
-        sed -i 's/^#\?X11Forwarding.*/X11Forwarding no/' /etc/ssh/sshd_config
+        update_ssh_setting "X11Forwarding" "no"
 
         # Set login grace time
-        sed -i 's/^#\?LoginGraceTime.*/LoginGraceTime 30/' /etc/ssh/sshd_config
+        update_ssh_setting "LoginGraceTime" "30"
 
         # Set max sessions
-        sed -i 's/^#\?MaxSessions.*/MaxSessions 2/' /etc/ssh/sshd_config
+        update_ssh_setting "MaxSessions" "2"
 
         # Use only strong ciphers
-        if ! grep -q "^Ciphers" /etc/ssh/sshd_config; then
-            echo "" >> /etc/ssh/sshd_config
-            echo "# Strong ciphers only" >> /etc/ssh/sshd_config
-            echo "Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr" >> /etc/ssh/sshd_config
-        fi
+        update_ssh_setting "Ciphers" "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr"
 
         # Use only strong MACs
-        if ! grep -q "^MACs" /etc/ssh/sshd_config; then
-            echo "MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256" >> /etc/ssh/sshd_config
-        fi
+        update_ssh_setting "MACs" "hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256"
 
         # Use only strong key exchange algorithms
-        if ! grep -q "^KexAlgorithms" /etc/ssh/sshd_config; then
-            echo "KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512" >> /etc/ssh/sshd_config
-        fi
+        update_ssh_setting "KexAlgorithms" "curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512"
     fi
 
     # Test SSH config
@@ -193,6 +205,11 @@ setup_auto_updates() {
     log "Setting up automatic security updates..."
 
     apt-get install -y unattended-upgrades apt-listchanges
+
+    if [ -f /etc/apt/apt.conf.d/50unattended-upgrades ]; then
+        log "Unattended upgrades already configured, skipping"
+        return 0
+    fi
 
     # Configure unattended upgrades
     cat > /etc/apt/apt.conf.d/50unattended-upgrades << 'EOF'
@@ -293,7 +310,9 @@ configure_limits() {
     log "Configuring system limits..."
 
     # Increase file descriptor limits
-    if ! grep -q "* soft nofile" /etc/security/limits.conf; then
+    if grep -q "* soft nofile" /etc/security/limits.conf; then
+        log "File descriptor limits already configured, skipping"
+    else
         cat >> /etc/security/limits.conf << 'EOF'
 
 # Increased file descriptor limits

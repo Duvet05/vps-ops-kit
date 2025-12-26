@@ -48,15 +48,29 @@ log "Starting backup system setup..."
 create_backup_structure() {
     log "Creating backup directory structure..."
 
+    if [ -d "$BACKUP_SCRIPT_DIR" ]; then
+        warning "Backup directory already exists at $BACKUP_SCRIPT_DIR"
+        read -p "Continue and potentially overwrite files? (yes/no): " answer
+        if [ "$answer" != "yes" ]; then
+            log "User chose not to overwrite. Exiting."
+            exit 0
+        fi
+    fi
+
     mkdir -p "$BACKUP_SCRIPT_DIR"
     mkdir -p "$BACKUP_SCRIPT_DIR/config"
 
-    success "Directory structure created at $BACKUP_SCRIPT_DIR"
+    success "Directory structure ready at $BACKUP_SCRIPT_DIR"
 }
 
 # Create backup configuration
 create_backup_config() {
     log "Creating backup configuration..."
+
+    if [ -f "$BACKUP_SCRIPT_DIR/config/backup.conf" ]; then
+        log "Backup configuration already exists, skipping creation"
+        return 0
+    fi
 
     cat > "$BACKUP_SCRIPT_DIR/config/backup.conf" << 'EOF'
 # VPS Backup Configuration
@@ -118,6 +132,11 @@ EOF
 # Create main backup script
 create_backup_script() {
     log "Creating backup script..."
+
+    if [ -f "$BACKUP_SCRIPT_DIR/backup.sh" ]; then
+        log "Backup script already exists, skipping creation"
+        return 0
+    fi
 
     cat > "$BACKUP_SCRIPT_DIR/backup.sh" << 'EOFSCRIPT'
 #!/bin/bash
@@ -283,6 +302,11 @@ EOFSCRIPT
 create_restore_script() {
     log "Creating restore helper script..."
 
+    if [ -f "$BACKUP_SCRIPT_DIR/restore.sh" ]; then
+        log "Restore script already exists, skipping creation"
+        return 0
+    fi
+
     cat > "$BACKUP_SCRIPT_DIR/restore.sh" << 'EOFSCRIPT'
 #!/bin/bash
 
@@ -382,8 +406,20 @@ setup_cron() {
             ;;
     esac
 
+    # Check if cron job already exists
+    if crontab -l 2>/dev/null | grep -q "$BACKUP_SCRIPT_DIR/backup.sh"; then
+        log "Cron job for backup already exists"
+        read -p "Update existing cron schedule? (yes/no): " update_cron
+        if [ "$update_cron" != "yes" ]; then
+            log "Keeping existing cron job"
+            return 0
+        fi
+        # Remove old entry
+        crontab -l 2>/dev/null | grep -v "$BACKUP_SCRIPT_DIR/backup.sh" | crontab -
+    fi
+
     # Add cron job
-    (crontab -l 2>/dev/null | grep -v "$BACKUP_SCRIPT_DIR/backup.sh"; echo "$cron_schedule $BACKUP_SCRIPT_DIR/backup.sh") | crontab -
+    (crontab -l 2>/dev/null; echo "$cron_schedule $BACKUP_SCRIPT_DIR/backup.sh") | crontab -
 
     success "Cron job added: $description"
     log "Backup scheduled: $cron_schedule"
