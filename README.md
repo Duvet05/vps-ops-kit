@@ -98,7 +98,7 @@ sudo ./scripts/setup-firewall.sh
 Deploys a complete monitoring solution using Docker:
 
 **Components:**
-- **Prometheus** (port 9090) - Metrics collection and storage
+- **Prometheus** (port 9090 by default) - Metrics collection and storage
 - **Grafana** (port 3000) - Visualization dashboards
 - **Node Exporter** (port 9100) - System metrics
 
@@ -108,12 +108,23 @@ Deploys a complete monitoring solution using Docker:
 - ✅ Idempotent container management
 - ✅ Helper scripts for start/stop/logs
 - ✅ Persistent data volumes
+- ✅ Automatic port conflict detection
 
 **Access:**
-- Prometheus: `http://your-server:9090`
+- Prometheus: `http://your-server:9090` (or custom port if configured)
 - Grafana: `http://your-server:3000`
   - **Default credentials:** admin/admin
   - ⚠️ **CHANGE IMMEDIATELY AFTER FIRST LOGIN**
+
+**⚠️ LiveKit Port Conflict:**
+If you're running LiveKit, port 9090 is used by LiveKit Ingress. The monitoring stack will automatically detect this and fail. To fix:
+```bash
+# Change Prometheus port to 9091
+sed -i 's/"9090:9090"/"9091:9090"/g' /opt/vps-monitoring/docker-compose.yml
+cd /opt/vps-monitoring && docker compose down && docker compose up -d
+# Allow the new port in firewall
+ufw allow 9091/tcp comment 'Prometheus'
+```
 
 **Security Warnings:**
 - Default Grafana password must be changed
@@ -669,5 +680,5 @@ Created for Ubuntu VPS administrators who want a reliable, safe, and automated o
 ---
 
 **Last Updated:** 2025-12-26
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Status:** Production Ready ✅
