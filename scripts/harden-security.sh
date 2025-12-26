@@ -192,8 +192,13 @@ harden_ssh() {
     # Test SSH config
     if sshd -t; then
         success "SSH configuration is valid"
-        systemctl restart sshd
-        success "SSH service restarted"
+        # Try both sshd and ssh service names (Ubuntu uses 'ssh')
+        if systemctl restart sshd 2>/dev/null || systemctl restart ssh 2>/dev/null; then
+            success "SSH service restarted"
+        else
+            warning "Could not restart SSH service automatically"
+            log "Please restart SSH manually: systemctl restart ssh"
+        fi
     else
         error "SSH configuration test failed! Restoring backup..."
         cp /etc/ssh/sshd_config.backup.* /etc/ssh/sshd_config
